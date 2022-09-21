@@ -12,6 +12,7 @@
 #include <cassert>
 #include <fstream>
 
+#include <algorithm>
 #include <random>
 #include <climits>
 
@@ -21,11 +22,6 @@ enum Partition {
   A = 0,
   B
 };
-
-//enum CutType {
-  //CUT = 0,
-  //UNCUT
-//};
 
 class Cell;
 class Net;
@@ -51,19 +47,13 @@ class Net {
 
     void add_cell(Cell* cell);
 
-    //CutType get_cut_type();
-    //void set_cut_type(CutType ct);
-
   private:
 
     std::string _name;
     std::vector<Cell*> _connected_cells;
 
-    // 0 -> partition a
-    // 1 -> partition b
-    //std::array<size_t, 2> _num_cells_in_partition{0, 0};
-
-    //CutType _ct;
+    // TODO: should we pre-find critical path?
+    //bool _is_critical{false};
 };
 
 // ==============================================================================
@@ -87,15 +77,6 @@ void Net::add_cell(Cell* cell) {
   _connected_cells.push_back(cell);
   return;
 }
-
-//CutType Net::get_cut_type() {
-  //return _ct;
-//}
-
-//void Net::set_cut_type(CutType ct) {
-  //_ct = ct;
-  //return;
-//}
 
 // ==============================================================================
 //
@@ -123,7 +104,7 @@ class Cell {
 
     void change_partition();
 
-    void set_fixed();
+    void set_fixed(bool fix);
     bool is_fixed();
 
     void caculate_gain();
@@ -132,13 +113,16 @@ class Cell {
 
     std::string _name;
     std::vector<Net*> _nets;
-    Partition _par;
 
     bool _is_fixed{false};
+    Partition _par;
     int _gain{0};
     int _prev_gain{0};
-    size_t _list_loc;
+    std::list<Cell*>::iterator _loc;
 };
+
+
+
 
 // ==============================================================================
 //
@@ -186,46 +170,41 @@ bool Cell::is_fixed() {
   return _is_fixed;
 }
 
-void Cell::set_fixed() {
-  _is_fixed = true;
+void Cell::set_fixed(bool fix) {
+  _is_fixed = fix;
 }
 
 void Cell::caculate_gain() {
-  int fs{0};
-  int te{0};
+  _gain = 0;
 
   for(auto* n: _nets) {
-    bool diff_par{false};
-    bool same_par{false};
+    int from{0};
+    int to{0};
 
-    for(auto* neighbor: n->get_cells()) {
-      if(neighbor != this) {
-        if(_par != neighbor->get_partition()) {
-          diff_par = true;
-        }
-        else {
-          same_par = true;
-        }
+    for(auto* c: n->get_cells()) {
+      if(_par != c->get_partition()) {
+        ++to;
+      }
+      else {
+        ++from;
+      }
 
-        if(same_par && diff_par) {
-          break;
-        }
-        
+      if(to > 1 && from > 1) {
+        break;
       }
     } 
 
-    if(same_par && !diff_par) {
-      ++fs;
+    if(from == 1) {
+      ++_gain;
     }
-    else if(!same_par && diff_par) {
-      ++te;
+    if(to == 0) {
+      --_gain;
     }
   }
 
-  _gain = fs - te;
-
   return;
 }
+
 
 // ==============================================================================
 //
@@ -251,25 +230,29 @@ class Circuit {
 
     void _parse();
 
-    void _caculate_gain();
+    void _initialize_cells();
 
     void _initialize_partition();
 
     void _initialize_max_gain();
 
-    void _set_bucket();
+    void _initialize_buckets();
+
+    void _reset_pass();
 
     Cell* _choose_candidate();
 
-    int _update(Cell* cell);
-  
     bool _check(Cell* cell);
 
-    void _pass_reset();
+    void _update(Cell* cell);
+
+    void _reverse();
+
+    void _undo(Cell* cand);
 
     void _caculate_cut_size();
 
-    //void _set_cut_uncut_nets();
+    void _set_max_gain();
 
     std::unordered_map<std::string, Net*> _nets;
     std::unordered_map<std::string, Cell*> _cells;
@@ -277,7 +260,8 @@ class Circuit {
     std::filesystem::path _input_path;
     int _max_gain{0};
     size_t _cut_size{0};
-    std::vector<std::list<Cell*>> _bucket;
+    std::vector<std::list<Cell*>> _bucket_a;
+    std::vector<std::list<Cell*>> _bucket_b;
 
     // 0 -> partition a
     // 1 -> partition b
@@ -305,6 +289,40 @@ Circuit::~Circuit() {
   for(auto&& c: _cells) {
     delete c.second;
   }
+}
+
+void Circuit::fm() {
+
+  _initialize_partition();
+  _set_max_gain();
+
+  std::cerr << "finish initialization\n";
+  std::cerr << "Maximum available gain: " << _max_gain << "\n";
+  _caculate_cut_size();
+  std::cerr << "Initial cut size: " << _cut_size << "\n";
+
+
+  for(size_t p = 0; p < 1; ++p) {
+    std::cerr << "Pass: " << p << "\n";
+    int gain{0};
+    _reset_pass();
+    std::cerr << "finish resetting\n";
+
+    Cell* cand = _choose_candidate();
+
+    while(cand != nullptr) {
+      gain += cand->_gain;
+      _update(cand);
+      _cand_gains.push_back({cand, gain});
+      cand = _choose_candidate();
+    }
+
+    _reverse();
+    _caculate_cut_size();
+    std::cerr << "current cut size: " << _cut_size << "\n";
+  }
+
+  std::cerr << "finish fm pass\n";
 }
 
 void Circuit::dump(std::ostream& os) {
@@ -352,21 +370,23 @@ void Circuit::_parse() {
 
   std::vector<std::string> tokens;
   while(std::getline(sstream, line, ';')) {
-    if (line != "\n") {
-      std::stringstream line_stream(line);
-      std::string token;
-      tokens.clear();
+    line.erase(std::remove(line.begin(), line.end(), '\n'), line.cend());
+    std::stringstream line_stream(line);
+    std::string token;
+    tokens.clear();
 
-      while(std::getline(line_stream, token, ' ')) {
-        tokens.push_back(token);
-      }
+    line_stream >> std::ws;
+    while(std::getline(line_stream, token, ' ')) {
+      tokens.push_back(token);
+    }
 
-      // net
-      Net* net = new Net(tokens[1]);
-      _nets.insert({net->get_name(), net});
+    // net
+    Net* net = new Net(tokens[1]);
+    _nets.insert({net->get_name(), net});
 
-      // cells
-      for(size_t i = 2; i < tokens.size(); ++i) {
+    // cells
+    for(size_t i = 2; i < tokens.size(); ++i) {
+      if(tokens[i] != "") {
         auto iter = _cells.find(tokens[i]);
         Cell* cell{nullptr};
 
@@ -385,153 +405,42 @@ void Circuit::_parse() {
   }
 }
 
-void Circuit::fm() {
-
-  _initialize_partition();
-  _caculate_gain();
-  _set_bucket();
-
-  std::cerr << "finish initialization\n";
-
-  // TODO: run multiple passes
-  Cell* cand = _choose_candidate();
-  int gain{0};
-  while(cand != nullptr) {
-    gain += _update(cand);
-    _cand_gains.push_back({cand, gain});
-    cand = _choose_candidate();
-  }
-  std::cerr << "finish fm pass\n";
-
-
-  // find maximum and reverse
-  int max{INT_MIN};
-  int max_id{0};
-  for(int i = _cand_gains.size() - 1; i >= 0; --i) {
-    if(_cand_gains[i].second > max) {
-      max = _cand_gains[i].second;
-      max_id = i;
+void Circuit::_set_max_gain() {
+  _max_gain = 0;
+  for(auto&& s_c: _cells) {
+    Cell* c = s_c.second;
+    if(c->get_nets().size() > _max_gain) {
+      _max_gain = c->get_nets().size();
     }
   }
-
-  for(int i = _cand_gains.size() - 1; i > max_id; --i) {
-    _update(_cand_gains[i].first);
-  }
-
-  _caculate_cut_size();
+  return;
 }
 
-int Circuit::_update(Cell* cand) {
-  
-  int gain{0};
-  Partition par = cand->get_partition();
-  cand->change_partition();
-  cand->set_fixed();
-
-  --_num_cells_in_partition[par];
-  ++_num_cells_in_partition[(par + 1) % 2];
-  std::chrono::time_point<std::chrono::steady_clock> tic;
-  std::chrono::time_point<std::chrono::steady_clock> toc;
-
-  std::unordered_set<Cell*> updates;
-
-  for(auto* n: cand->get_nets()) {
-    //--n->_num_cells_in_partition[par];
-    //++n->_num_cells_in_partition[(par + 1) % 2];
-
-    for(auto* c: n->get_cells()) {
-      auto i_b = updates.insert(c);
-      //if(i_b.second) {
-      //}
-    }
-  }
-
-
-  // update bucket
-  //tic = std::chrono::steady_clock::now();
-  for(auto* c: updates) {
-    c->caculate_gain();
-
-    //auto idx = _bucket[c->_prev_gain + _max_gain].begin();
-    //std::advance(idx, c->_list_loc);
-
-    if(c->_prev_gain != c->_gain) {
-      _bucket[c->_prev_gain + _max_gain].remove(c);
-      _bucket[c->_gain + _max_gain].push_back(c);
-      c->_prev_gain = c->_gain;
-    }
-
-    //c->_list_loc = _bucket[c->_gain + _max_gain].size() - 1;
-
-    // update prev_gain
-  }
-  //toc = std::chrono::steady_clock::now();
-  //std::cerr << std::chrono::duration_cast<std::chrono::milliseconds>(toc - tic).count() << "\n";
-
-
-  return gain;
-}
-
-void Circuit::_set_bucket() {
-  _initialize_max_gain();
-  _bucket.resize(_max_gain * 2 + 1);
-  
-  // gain -1 s maped to 1
-  // gain 2 is maped to 4
+void Circuit::_initialize_cells() {
+  _cand_gains.clear();
+  _cand_gains.reserve(_cells.size());
 
   for(auto&& s_c: _cells) {
     Cell* c = s_c.second;
-    _bucket[c->_gain + _max_gain].push_back(c);
-    c->_list_loc = _bucket[c->_gain + _max_gain].size() - 1;
+    c->caculate_gain();
+    c->_prev_gain = c->_gain;
+    c->set_fixed(false);
   }
+  return;
 }
 
-Cell* Circuit::_choose_candidate() {
-
-  for(int i = _max_gain * 2; i >= 0; --i) {
-    if(!_bucket[i].empty()) {
-      Cell* cand = _bucket[i].front();
-      // check if the cell meet balance criterion
-      if(_check(cand)) {
-        return cand;
-      }
-    }
-  }
-  return nullptr;
-}
-
-bool Circuit::_check(Cell* cell) {
-
-
-  bool valid{false};
-
-  switch(cell->_par) {
-
-    case Partition::A:
-      valid = (!cell->is_fixed()) &&
-      ((_cells.size() * (1 - _balance_factor) / 2) < (_num_cells_in_partition[0] - 1)) &&
-      ((_num_cells_in_partition[0] - 1) <= (_cells.size() * (1 + _balance_factor) / 2));
-      break;
-
-    case Partition::B:
-      valid = (!cell->is_fixed()) &&
-      ((_cells.size() * (1 - _balance_factor) / 2) < (_num_cells_in_partition[1] - 1)) &&
-      ((_num_cells_in_partition[1] - 1) <= (_cells.size() * (1 + _balance_factor) / 2));
-      break;
-  }
-
-  return valid;
-
-}
-
+// random
 void Circuit::_initialize_partition() {
-  // random
-  std::mt19937 eng;
-  std::uniform_int_distribution<> distr(0, 1);
+  srand(time(NULL));
+  //std::random_device rd{};
+  //std::mt19937 eng(rd());
+  //std::mt19937 eng;
+  //std::uniform_int_distribution<> distr(0, 1);
   std::array<Partition, 2> choose{Partition::A, Partition::B}; 
 
   for(auto&& s_c: _cells) {
-    auto random = distr(eng);
+    //auto random = distr(eng);
+    int random = rand() % 2;
 
     Cell* c = s_c.second;
     c->_gain = 0;
@@ -547,16 +456,213 @@ void Circuit::_initialize_partition() {
   return;
 }
 
-void Circuit::_initialize_max_gain() {
-  _max_gain = 0;
-
+void Circuit::_initialize_buckets() {
+  _bucket_a.clear();
+  _bucket_b.clear();
+  _bucket_a.resize(_max_gain * 2 + 1);
+  _bucket_b.resize(_max_gain * 2 + 1);
+  
   for(auto&& s_c: _cells) {
     Cell* c = s_c.second;
-    if(c->get_nets().size() > _max_gain) {
-      _max_gain = c->get_nets().size();
+    switch(c->get_partition()) {
+      case Partition::A:
+        _bucket_a[c->_gain + _max_gain].push_back(c);
+        c->_loc = _bucket_a[c->_gain + _max_gain].end();
+        --c->_loc;
+        break;
+      case Partition::B:
+        _bucket_b[c->_gain + _max_gain].push_back(c);
+        c->_loc = _bucket_b[c->_gain + _max_gain].end();
+        --c->_loc;
+        break;
     }
   }
 }
+
+void Circuit::_reset_pass() {
+  _initialize_cells();
+  _initialize_buckets();
+}
+
+void Circuit::_update(Cell* cand) {
+  
+  Partition prev_par = cand->get_partition();
+  cand->change_partition();
+  --_num_cells_in_partition[prev_par];
+  ++_num_cells_in_partition[(prev_par + 1) % 2];
+
+  //std::cerr << "1111111\n";
+  //std::chrono::time_point<std::chrono::steady_clock> tic;
+  //std::chrono::time_point<std::chrono::steady_clock> toc;
+
+
+  //tic = std::chrono::steady_clock::now();
+  // =======================================================  
+  //  find critical nets and update corresponding cells
+  // =======================================================  
+  for(auto* n: cand->get_nets()) {
+    int prev_from{1};
+    int prev_to{0};
+    for(auto* c: n->get_cells()) {
+      if(c != cand) {
+        if(prev_par != c->get_partition()) {
+          ++prev_to;
+        }
+        else {
+          ++prev_from;
+        }
+
+        if(prev_to > 2 && prev_from > 2) {
+          break;
+        }
+      }
+    }
+
+
+    // case 1 before move
+    if(prev_to == 0) {
+      for(auto* c: n->get_cells()) {
+        if(!c->is_fixed()) {
+          ++c->_gain;
+        }
+      }
+    }
+    // case 2 before move
+    else if(prev_to == 1) {
+      for(auto* c: n->get_cells()) {
+        if(!c->is_fixed() && c->get_partition() != prev_par) {
+          --c->_gain;
+        }
+      }
+    }
+
+    int from = prev_from - 1;
+    int to = prev_to + 1;
+
+    // case 1 after move
+    if(from == 0) {
+      for(auto* c: n->get_cells()) {
+        if(!c->is_fixed()) {
+          --c->_gain;
+        }
+      }
+    }
+    // case 2 after move
+    else if (from == 1) {
+      for(auto* c: n->get_cells()) {
+        if(!c->is_fixed() && c->get_partition() == prev_par) {
+          ++c->_gain;
+        }
+      }
+    }
+  }
+  //toc = std::chrono::steady_clock::now();
+  //std::cerr << "update gain time: " << std::chrono::duration_cast<std::chrono::microseconds>(toc - tic).count() << "\n";
+
+  //tic = std::chrono::steady_clock::now();
+  for(auto* n: cand->get_nets()) {
+    for(auto* c: n->get_cells()) {
+      if((!c->is_fixed()) && (c->_prev_gain != c->_gain)) {
+
+        switch(c->get_partition()) {
+          case Partition::A:
+            _bucket_a[c->_gain + _max_gain].push_back(c);
+            _bucket_a[c->_prev_gain + _max_gain].erase(c->_loc);
+            c->_loc = _bucket_a[c->_gain + _max_gain].end();
+            --c->_loc;
+            break;
+          case Partition::B:
+            _bucket_b[c->_gain + _max_gain].push_back(c);
+            _bucket_b[c->_prev_gain + _max_gain].erase(c->_loc);
+            c->_loc = _bucket_b[c->_gain + _max_gain].end();
+            --c->_loc;
+            break;
+        }
+
+        c->_prev_gain = c->_gain;
+      }
+    }
+  }
+  //std::cerr << "33333333\n";
+  //toc = std::chrono::steady_clock::now();
+  //std::cerr << "update bucket time: " << std::chrono::duration_cast<std::chrono::microseconds>(toc - tic).count() << "\n";
+
+  return;
+}
+
+Cell* Circuit::_choose_candidate() {
+
+  Cell* cand = nullptr;
+  for(int i = _max_gain * 2; i >= 0; --i) {
+
+    while(!_bucket_a[i].empty() || !_bucket_b[i].empty()) {
+      if(!_bucket_a[i].empty()) {
+        cand = _bucket_a[i].front();
+        _bucket_a[cand->_gain + _max_gain].erase(_bucket_a[cand->_gain + _max_gain].begin());
+      }
+      else {
+        cand = _bucket_b[i].front();
+        _bucket_b[cand->_gain + _max_gain].erase(_bucket_b[cand->_gain + _max_gain].begin());
+      }
+
+      cand->set_fixed(true);
+
+      if(_check(cand)) {
+        return cand;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
+bool Circuit::_check(Cell* cell) {
+
+
+  bool valid{false};
+
+  switch(cell->_par) {
+
+    case Partition::A:
+      valid =
+      ((_cells.size() * (1 - _balance_factor) / 2) < (_num_cells_in_partition[0] - 1)) &&
+      ((_num_cells_in_partition[1] + 1) < (_cells.size() * (1 + _balance_factor) / 2));
+      break;
+
+    case Partition::B:
+      valid = 
+      ((_cells.size() * (1 - _balance_factor) / 2) < (_num_cells_in_partition[1] - 1)) &&
+      ((_num_cells_in_partition[0] + 1) < (_cells.size() * (1 + _balance_factor) / 2));
+      break;
+  }
+
+  return valid;
+
+}
+
+// find maximum total gain and reverse
+void Circuit::_reverse() {
+  int max{INT_MIN};
+  int max_id{0};
+  for(int i = _cand_gains.size() - 1; i >= 0; --i) {
+    if(_cand_gains[i].second > max) {
+      max = _cand_gains[i].second;
+      max_id = i;
+    }
+  }
+
+  for(int i = _cand_gains.size() - 1; i > max_id; --i) {
+    _undo(_cand_gains[i].first);
+  }
+}
+
+void Circuit::_undo(Cell* cand) {
+  Partition prev_par = cand->get_partition();
+  cand->change_partition();
+  --_num_cells_in_partition[prev_par];
+  ++_num_cells_in_partition[(prev_par + 1) % 2];
+}
+
 
 void Circuit::_caculate_cut_size() {
 
@@ -564,9 +670,8 @@ void Circuit::_caculate_cut_size() {
 
   for(auto&& s_n: _nets) {
     Net* n = s_n.second;
-    bool is_cut_uncut{true};
 
-    std::array<size_t, 2> pars{0, 0};
+    std::array<int, 2> pars{0, 0};
     for(auto* c: n->get_cells()) {
 
       switch(c->get_partition()) {
@@ -579,22 +684,11 @@ void Circuit::_caculate_cut_size() {
       }
 
       if(pars[0] != 0 && pars[1] != 0) {
-        _cut_size += 1;
+        ++_cut_size;
         break;
       }
     }
 
   }
 }
-
-void Circuit::_caculate_gain() {
-  for(auto&& s_c: _cells) {
-    Cell* c = s_c.second;
-    c->caculate_gain();
-  }
-  return;
-}
-
-
-
 
