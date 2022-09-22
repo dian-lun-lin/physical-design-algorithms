@@ -49,7 +49,7 @@ I run F-M (**single CPU core**) on a Ubuntu Linux 5.0.0-21-generic x86 64-bit ma
 
 ##  Single pass
 Table 1 shows runtime of my F-M implementation on each benchmark for one pass. My F-M implementation can finish all benchamrks **within 10 seconds**.
-In input_0.dat, the algorithm requries 9 seconds to finish. That is because input_0.dat contains the largest number of cells, which induces noticable overhead of updating buckets.
+In input_0.dat, the algorithm requries 9 seconds to finish. That is because input_0.dat contains the largest number of cells, which induces noticable overhead of updating buckets at each iteration within a pass.
 
 Table 1:
  Input | cut_size | runtime |
