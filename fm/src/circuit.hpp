@@ -16,7 +16,9 @@
 #include <random>
 #include <climits>
 
-#include "parser.hpp"
+#include "utility.hpp"
+
+namespace fm { // begin of namespace fm =======================================================================
 
 enum Partition {
   A = 0,
@@ -293,20 +295,37 @@ Circuit::~Circuit() {
 
 void Circuit::fm() {
 
+  std::cout << "=============================================================\n\n"
+            << "                    F-M Circuit Partitioning           \n\n"
+            << "#1. I randomly partition a given circuit and apply F-M\n"
+            << "to improve cut size.\n"
+            << "#2. My algorihm will keep running if improvement ratio \n"
+            << "is larger than 5\% or the number of passes is 10. \n\n"
+            << "=============================================================\n";
+
   _initialize_partition();
   _set_max_gain();
-
-  std::cerr << "finish initialization\n";
-  std::cerr << "Maximum available gain: " << _max_gain << "\n";
   _caculate_cut_size();
-  std::cerr << "Initial cut size: " << _cut_size << "\n";
+
+  std::cout << "finish parsing and initializing...\n\n"
+            << "////////////////////////\n"
+            << "Maximum available gain: " << _max_gain << "\n"
+            << "Initial cut size: " << _cut_size << "\n"
+            << "////////////////////////\n";
 
 
-  for(size_t p = 0; p < 1; ++p) {
-    std::cerr << "Pass: " << p << "\n";
+  size_t prev_cut_size{_cut_size};
+  int MAX_NUM_PASSES{10};
+  int p{0};
+  while(true) {
+
+    std::cout << "\nPass: " << p++ << "\n";
+
     int gain{0};
     _reset_pass();
-    std::cerr << "finish resetting\n";
+
+    std::cout << "finish resetting...\n"
+              << "start fm...\n";
 
     Cell* cand = _choose_candidate();
 
@@ -319,10 +338,20 @@ void Circuit::fm() {
 
     _reverse();
     _caculate_cut_size();
-    std::cerr << "current cut size: " << _cut_size << "\n";
+    float delta = prev_cut_size - _cut_size;
+    float improve = delta / prev_cut_size;
+    std::cout << "###### current cut size: " << _cut_size << "\n"
+              << "###### improvement compared to previous pass: " << improve << "\n";
+
+    // if improvment less than 5%, terminate the loop
+    if(improve < 0.05f || p == MAX_NUM_PASSES) {
+      break;
+    }
+
+    prev_cut_size = _cut_size;
   }
 
-  std::cerr << "finish fm pass\n";
+  std::cout << "done.\n\n";
 }
 
 void Circuit::dump(std::ostream& os) {
@@ -431,16 +460,14 @@ void Circuit::_initialize_cells() {
 
 // random
 void Circuit::_initialize_partition() {
-  srand(time(NULL));
-  //std::random_device rd{};
-  //std::mt19937 eng(rd());
-  //std::mt19937 eng;
-  //std::uniform_int_distribution<> distr(0, 1);
+  std::random_device rd{};
+  std::mt19937 eng(rd());
+  std::uniform_int_distribution<> distr(0, 1);
   std::array<Partition, 2> choose{Partition::A, Partition::B}; 
 
   for(auto&& s_c: _cells) {
-    //auto random = distr(eng);
-    int random = rand() % 2;
+    auto random = distr(eng);
+    //int random = rand() % 2;
 
     Cell* c = s_c.second;
     c->_gain = 0;
@@ -692,3 +719,4 @@ void Circuit::_caculate_cut_size() {
   }
 }
 
+} // end of namespace fm =============================================================

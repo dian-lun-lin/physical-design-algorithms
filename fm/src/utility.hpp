@@ -4,6 +4,8 @@
 #include <fstream>
 
 
+namespace fm { // begin of namespace fm =======================================================================
+
 inline
 std::stringstream read_file_to_sstream(const std::filesystem::path& input_path) {
   using namespace std::literals::string_literals;
@@ -19,3 +21,5 @@ std::stringstream read_file_to_sstream(const std::filesystem::path& input_path) 
   sstream << ifs.rdbuf();
   return sstream;
 }
+
+} // end of namespace fm =============================================================
