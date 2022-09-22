@@ -219,7 +219,7 @@ class Circuit {
 
   public:
 
-    Circuit(const std::string& input_path);
+    Circuit(const std::string& input_path, int enabled);
 
     ~Circuit();
 
@@ -262,6 +262,7 @@ class Circuit {
     std::filesystem::path _input_path;
     int _max_gain{0};
     size_t _cut_size{0};
+    int _enabled;
     std::vector<std::list<Cell*>> _bucket_a;
     std::vector<std::list<Cell*>> _bucket_b;
 
@@ -278,7 +279,7 @@ class Circuit {
 //
 // ==============================================================================
 
-Circuit::Circuit(const std::string& input_path):_input_path{input_path} {
+Circuit::Circuit(const std::string& input_path, int enabled): _input_path{input_path}, _enabled{enabled} {
   _parse();
 }
 
@@ -295,13 +296,14 @@ Circuit::~Circuit() {
 
 void Circuit::fm() {
 
-  std::cout << "=============================================================\n\n"
+  std::cout << "=================================================================================\n\n"
             << "                    F-M Circuit Partitioning           \n\n"
-            << "#1. I randomly partition a given circuit and apply F-M\n"
-            << "to improve cut size.\n"
-            << "#2. My algorihm will keep running if improvement ratio \n"
-            << "is larger than 5\% or the number of passes is 10. \n\n"
-            << "=============================================================\n";
+            << "./fm input_file output_file 1/0 (enable multiple passes or not) \n\n"
+            << "#1. I randomly partition a given circuit and apply F-M to improve cut size.\n"
+            << "#2. If the third parameter is 1 (i.e., enable), my algorihm will keep running\n"
+            << "until improvement ratio is less than 5\% or the number of passes is 10. \n"
+            << "#3. If the third parameter is 0 (i.e., disable), I will run F-M for one pass\n\n."
+            << "==================================================================================\n\n";
 
   _initialize_partition();
   _set_max_gain();
@@ -313,10 +315,13 @@ void Circuit::fm() {
             << "Initial cut size: " << _cut_size << "\n"
             << "////////////////////////\n";
 
-
   size_t prev_cut_size{_cut_size};
   int MAX_NUM_PASSES{10};
+  if(_enabled == 0) {
+    MAX_NUM_PASSES = 1;
+  }
   int p{0};
+
   while(true) {
 
     std::cout << "\nPass: " << p++ << "\n";
