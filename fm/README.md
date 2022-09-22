@@ -42,8 +42,14 @@ For example:
 
 
 # Experimental Results
-All results are obtained in a single pass.
+We implement F-M using C++17 and compile F-M using GCC-8 with optimization -O3 enabled.
+We run F-M (**single CPU core**) on a Ubuntu Linux 5.0.0-21-generic x86 64-bit machine with 40 Intel Xeon Gold 6138 CPU cores at 2.00 GHz and 256 GB RAM.
 
+
+## One single pass
+Table 1 shows runtime of our F-M on each benchmark for one pass. 
+
+Table 1:
  Input | cut_size | runtime |
 | :-: | :-: | :-: |
 | input_0.dat |  42239  |  7.69s |
@@ -54,6 +60,18 @@ All results are obtained in a single pass.
 | input_5.dat |  290729 | 2.26s |
 | input_6.dat |  2 | 0.003s |
 
+## Best cut size
+Table 2 shows runtime of our F-M on each benchmark for one pass.
+
+ Input | cut_size | # passes | runtime
+| :-: | :-: | :-: |
+| input_0.dat |  
+| input_1.dat | 
+| input_2.dat |  
+| input_3.dat | 
+| input_4.dat | 
+| input_5.dat |  
+| input_6.dat | 
 # Challenges
 
 
