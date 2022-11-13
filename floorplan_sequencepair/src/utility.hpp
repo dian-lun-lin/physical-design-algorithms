@@ -3,7 +3,7 @@
 #include <declarations.h>
 
 
-namespace sp { // begin of namespace sp =======================================================================
+namespace fp { // begin of namespace sp =======================================================================
 
 inline
 std::stringstream read_file_to_sstream(const std::filesystem::path& input_path) {

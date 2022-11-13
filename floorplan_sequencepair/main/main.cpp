@@ -4,13 +4,16 @@
 
 int main(int argc, char** argv) {
 
-  if(argc != 4) {
-    throw std::runtime_error("Number of parameters should be exact 3!\n ./sp input_block_file input_net_file output_file");
+  if(argc != 5) {
+    throw std::runtime_error("Number of parameters should be exact 4!\n ./sp alpha input_block_file input_net_file output_file");
   }
-  std::string blockf = argv[1];
-  std::string netf = argv[2];
-  std::ofstream output_file{argv[3]};
+  float alpha = std::stof(argv[1]);
+  std::string blockf = argv[2];
+  std::string netf = argv[3];
+  std::ofstream output_file{argv[4]};
 
-  sp::SP(blockf, netf);
+  fp::SP algo(alpha, blockf, netf);
+  algo.apply();
+  algo.dump(output_file);
   
 }
