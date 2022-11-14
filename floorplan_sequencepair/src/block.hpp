@@ -35,6 +35,7 @@ class Block {
     size_t _y1;
     size_t _x2;
     size_t _y2;
+    bool _locked{false};
 
     
 };

@@ -68,6 +68,8 @@ for i, name in enumerate(names):
       len_x = min(block[1], block[2])
       len_y = max(block[1], block[2])
       same = (same and len_x == min(len_w, len_h) and len_y == max(len_w, len_h))
+      if not same: 
+        print(block[0])
   same = (same and (vis == 1))
   if not same: break
 
