@@ -1,4 +1,5 @@
 #include  <src/sp.hpp>
+#include  <src/parallel_sp.hpp>
 #include <iostream>
 
 
@@ -12,7 +13,7 @@ int main(int argc, char** argv) {
   std::string netf = argv[3];
   std::ofstream output_file{argv[4]};
 
-  fp::SP algo(alpha, blockf, netf);
+  fp::ParallelSP algo(alpha, blockf, netf, 8);
   algo.apply();
   algo.dump(output_file);
   

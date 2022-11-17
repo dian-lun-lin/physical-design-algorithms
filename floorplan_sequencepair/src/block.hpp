@@ -15,6 +15,14 @@ class Block {
       const size_t width
     );
 
+    Block(const Block& bk) = default;
+    Block(Block&& bk) = default;
+
+    Block& operator= (const Block& bk) = default;
+    Block& operator= (Block&& bk) = default;
+  
+    ~Block() = default;
+
     void set_coordinate(
       size_t x1,
       size_t y1,

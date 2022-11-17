@@ -15,6 +15,14 @@ class Net {
       size_t degree
     );
 
+    Net(const Net& net) = default;
+    Net(Net&& net) = default;
+
+    Net& operator= (const Net& net) = default;
+    Net& operator= (Net&& net) = default;
+  
+    ~Net() = default;
+
     void set_length(size_t length);
 
   private:

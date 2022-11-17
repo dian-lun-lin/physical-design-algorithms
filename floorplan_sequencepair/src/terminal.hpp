@@ -15,6 +15,13 @@ class Terminal {
       const size_t x,
       const size_t y
     );
+    Terminal(const Terminal& tm) = default;
+    Terminal(Terminal&& tm) = default;
+
+    Terminal& operator= (const Terminal& tm) = default;
+    Terminal& operator= (Terminal&& tm) = default;
+  
+    ~Terminal() = default;
 
   private:
 

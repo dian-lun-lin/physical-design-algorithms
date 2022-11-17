@@ -15,5 +15,6 @@ namespace fp {
   class SP;
   class Block;
   class Net;
+  class ParallelSP;
 
 }
