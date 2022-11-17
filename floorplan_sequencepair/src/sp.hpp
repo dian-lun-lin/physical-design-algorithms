@@ -52,7 +52,7 @@ class SP {
     void _move(const std::vector<Block*>& out_bounds);
     void _get_results();
     void _get_final_results();
-    void _get_average();
+    void _update_average();
     void _set_coordinate();
     void _set_wirelength();
     void _reject();
@@ -112,6 +112,8 @@ class SP {
     float _chip_width;
     float _alpha;
 
+    size_t _iter{1};
+
     double _area_average{0};
     double _wire_length_average{0};
     double _penalty_average{0};
@@ -158,30 +160,30 @@ SP::SP(
 
 
 
-  // initialize
-  _get_average();
 
   _initialize();
+  _update_average();
+
   _cost = INT_MAX;
   _update_best();
   _update_all_to_best();
-
 }
 
-void SP::_get_average() {
-  _area_average = 0;
-  _wire_length_average = 0;
-  // It seems like running one time is enough
-  for(size_t i = 0; i < 1; ++i) {
-    _initialize();
-    _area_average += _chip_area;
-    _wire_length_average += _wire_length;
-    _penalty_average += _get_penalty();
-  }
+void SP::_update_average() {
 
-  //_area_average /= 100;
-  //_wire_length_average /= 100;
-  //_penalty_average /= 100;
+  _area_average *= _iter;
+  _wire_length_average *= _iter;
+  _penalty_average *= _iter;
+
+  _area_average += _chip_area;
+  _wire_length_average += _wire_length;
+  _penalty_average += _get_penalty();
+
+  _area_average /= (_iter + 1);
+  _wire_length_average /= (_iter + 1);
+  _penalty_average /= (_iter + 1);
+
+  ++_iter;
 }
 
 double SP::_get_penalty() {
@@ -207,7 +209,7 @@ double SP::_get_penalty() {
   else if (_chip_width > _outline.first && _chip_height > _outline.second) {
     penalty += _chip_height * _chip_width - _outline.second * _outline.first;
   }
-  return penalty;
+  return std::sqrt(penalty);
 }
 
 
@@ -215,96 +217,39 @@ void SP::apply() {
 
   std::uniform_real_distribution dist(0.f, 1.f);
   std::uniform_int_distribution<size_t> dist2(1, 10);
-  std::uniform_int_distribution<size_t> dist3(2, _num_blocks - 1);
 
   size_t count{0};
   std::vector<Block*> out_bounds;
   std::vector<Block*> in_bounds;
-  double total_temp{5000};
-  bool is_legal{false}; 
-  size_t nobest_count{0};
+  double temp{5000};
 
-  size_t out_width{0};
-  size_t out_height{0};
-  double temp{total_temp};
-  double beta = 300;
-  _build_connections();
-  _get_results();
-  std::cerr << "thread\n";
+  double beta = 1000;
   while(temp > 5) {
 
     for(size_t i = 0; i < 3000; ++i) {
-      out_bounds.clear();
-      in_bounds.clear();
-      for(size_t k = 2; k < _num_blocks + 2; ++k) {
-        bool is_legal = (_outline.first >= _chip_width) && (_outline.second >= _chip_height);
-        if(!is_legal) {
-          out_bounds.push_back(_blocks[k]);
-        }
-        else {
-          in_bounds.push_back(_blocks[k]);
-        }
-      }
-
-      //std::shuffle(in_bounds.begin(), in_bounds.end(), _eng);
-      //std::shuffle(out_bounds.begin(), out_bounds.end(), _eng);
-
-      //for(size_t j = 0; j < in_bounds.size() / 2; ++j) {
-        //_move3(in_bounds[j]->_id);
-      //}
-
-      //size_t num_moves = dist2(_eng);
-      //for(size_t j = 0; j < num_moves; ++j) {
-        //_move(out_bounds);
-      //}
-      
-      //for(size_t j = 0; j < num_moves; ++j) {
       _move();
-      //}
 
       _build_connections();
       _get_results();
 
       double penalty = _get_penalty() / _penalty_average;
-      //double penalty = _get_penalty();
-      //if(_outline.first < _chip_width) {
-        ////penalty += (_chip_width - _outline.first) + 0.01 * out_width;
-        //penalty += (_chip_width - _outline.first);
-        //out_width++;
-      //}
-      //if(_outline.second < _chip_height) {
-        ////penalty += (_chip_height - _outline.second) + 0.01 * out_height;
-        //penalty += (_chip_height - _outline.second);
-        //out_height++;
-      //}
-
-      
-      _cost += penalty;
-      //std::cerr << "penalty: " << penalty << "\n";
-      //std::cerr << "number out width: " << out_width << "\n";
-      //std::cerr << "number out height: " << out_height << "\n";
-
+      _cost = penalty;
       if(_cost < _prev_cost) {
         _accept();
         if(_cost < _best_cost) {
           _update_best();
+          _update_average();
         }
-        //std::cerr << "accept\n";
       }
       else {
-        ++nobest_count;
         auto random = dist(_eng);
         double accr = std::exp((_cost - _prev_cost) * beta * -1 / temp);
-        //std::cerr << "delta cost: " << _cost - _prev_cost << "\n";
-        //std::cerr << "accr rate: " << accr << "\n";
 
         if(accr > random) {
           _accept();
-          //std::cerr << "accept\n";
         }
         else {
           _reject();
-          //std::cerr << "reject\n";
         }
       }
     }
@@ -314,30 +259,7 @@ void SP::apply() {
   _update_all_to_best();
   _build_connections();
   _get_results();
-
 }
-
-//void SP::_reverse() {
-  //std::vector<size_t> reverse_first_seq(_first_seq.size());
-  //std::vector<size_t> reverse_second_seq(_second_seq.size());
-  //std::vector<size_t> reverse_first_id_loc_map(_first_seq_id_loc_map.size());
-  //std::vector<size_t> reverse_second_id_loc_map(_second_seq_id_loc_map.size());
-
-  //for(size_t i = 0; i < _first_seq.size(); ++i) {
-    //reverse_first_seq[i] = _first_seq[_first_seq.size() - i - 1];
-    //reverse_first_id_loc_map[reverse_first_seq[i]] = i;
-  //}
-
-  //for(size_t i = 0; i < _second_seq.size(); ++i) {
-    //reverse_second_seq[i] = _second_seq[_second_seq.size() - i - 1];
-    //reverse_second_id_loc_map[reverse_second_seq[i]] = i;
-  //}
-  //_first_seq = reverse_first_seq;
-  //_second_seq = reverse_second_seq;
-  //_first_seq_id_loc_map = reverse_first_id_loc_map;
-  //_second_seq_id_loc_map = reverse_second_id_loc_map;
-
-//}
 
 void SP::_update_all_to_best() {
   _first_seq = _best_first_seq;
@@ -400,7 +322,6 @@ void SP::_reject() {
 
 
 void SP::dump(std::ostream& os) {
-  std::cerr << "dumping...\n";
 
   _toc = std::chrono::steady_clock::now();
   _runtime = std::chrono::duration_cast<std::chrono::seconds>(_toc - _tic).count();
@@ -456,33 +377,10 @@ void SP::_get_results() {
   _chip_height = _length_v[1];
   _chip_area = _chip_height * _chip_width;
 
+  //_cost = _alpha * _chip_area / _area_average + (1-_alpha) * _wire_length / _wire_length_average;
   _set_wirelength();
-  //_chip_width = (*std::max_element(_blocks.begin() + 2, _blocks.end(), [](const Block* a, const Block* b){ return a->_x2 < b->_x2; }))->_x2;
-  //_chip_height = (*std::max_element(_blocks.begin() + 2, _blocks.end(), [](const Block* a, const Block* b){ return a->_y2 < b->_y2; }))->_y2;
-  //_chip_area = _chip_height * _chip_width;
-
-  // cost
-  _cost = _alpha * _chip_area / _area_average + (1-_alpha) * _wire_length / _wire_length_average;
-
-  //std::cerr << "restriced outline: " << "width: " << _outline.first << " height: " << _outline.second << "\n";
-  //std::cerr << "current outline: " << "width: " << _chip_width << " height: " << _chip_height << "\n"; 
 }
 
-//void SP::_get_results() {
-  //_spfa_h();
-  //_spfa_v();
-
-  //_set_coordinate();
-  //auto tmp = std::min(_outline.first, _outline.second);
-  //_compress(tmp/50);
-  //_set_wirelength();
-  //_chip_width = (*std::max_element(_blocks.begin() + 2, _blocks.end(), [](const Block* a, const Block* b){ return a->_x2 < b->_x2; }))->_x2;
-  //_chip_height = (*std::max_element(_blocks.begin() + 2, _blocks.end(), [](const Block* a, const Block* b){ return a->_y2 < b->_y2; }))->_y2;
-  //_chip_area = _chip_height * _chip_width;
-  //_chip_width = (*std::max_element(_blocks.begin() + 2, _blocks.end(), [](const Block* a, const Block* b){ return a->_x2 < b->_x2; }))->_x2;
-  //_chip_height = (*std::max_element(_blocks.begin() + 2, _blocks.end(), [](const Block* a, const Block* b){ return a->_y2 < b->_y2; }))->_y2;
-  //_chip_area = _chip_height * _chip_width;
-//}
 
 void SP::_get_final_results() {
   _spfa_h();
@@ -499,18 +397,9 @@ void SP::_get_final_results() {
   _chip_area = _chip_height * _chip_width;
 }
 
-//void SP::_relax() {
-  //if(_chip_width > )
-
-//}
-
 void SP::_compress(int step_size) {
 
-  //std::cerr << "id: " << sorted_idx_x[0] << " " <<  _blocks[sorted_idx_x[0]]->_x1 << ", " 
-            //<< "id: " << sorted_idx_x[10] << " " << _blocks[sorted_idx_x[10]]->_x1 << "\n";
-
-  //// horizonal
-  size_t count = 5;
+  size_t count = 10;
   while(count-- > 0) {
     std::vector<size_t> sorted_idx_x(_num_blocks);
     std::iota(sorted_idx_x.begin(), sorted_idx_x.end(), 2);
@@ -524,6 +413,7 @@ void SP::_compress(int step_size) {
       return _blocks[a]->_y1 < _blocks[b]->_y1;
     });
 
+    // horizonal
     for(int i = 0; i < sorted_idx_x.size(); ++i) {
       auto idx = sorted_idx_x[i];
       int from = _blocks[idx]->_x1;
@@ -542,13 +432,6 @@ void SP::_compress(int step_size) {
             break;
           }
         }
-        //for(int k = i-1; k > 0; --k) {
-          //size_t idx2 = sorted_idx_x[k];
-          //if(_is_overlapped(_blocks[idx], _blocks[idx2])) {
-            //is_legal = false;
-            //break;
-          //}
-        //}
         if(!is_legal) {
           _blocks[idx]->set_coordinate(prev_x1, prev_y1, prev_x2, prev_y2);
           break;
@@ -556,7 +439,7 @@ void SP::_compress(int step_size) {
       }
     }
 
-  // vertical
+    // vertical
     for(int i = 0; i < sorted_idx_y.size(); ++i) {
       auto idx = sorted_idx_y[i];
       int from = _blocks[idx]->_y1;
@@ -569,14 +452,6 @@ void SP::_compress(int step_size) {
         _blocks[idx]->_y1 = y;
         _blocks[idx]->_y2 = _blocks[idx]->_y1 + _blocks[idx]->_height;
         
-        //for(size_t k = 2; k < _num_blocks + 2; ++k) {
-        //for(int k = i-1; k > 0; --k) {
-          //size_t idx2 = sorted_idx_y[k];
-          //if(_is_overlapped(_blocks[idx], _blocks[idx2])) {
-            //is_legal = false;
-            //break;
-          //}
-        //}
         for(size_t k = 2; k < _num_blocks + 2; ++k) {
           if(k != idx && _is_overlapped(_blocks[idx], _blocks[k])) {
             is_legal = false;
@@ -590,16 +465,6 @@ void SP::_compress(int step_size) {
       }
     }
   }
-  //for(size_t i = 2; i < _num_blocks + 2; ++i) {
-    //for(size_t j = i + 1; j < _num_blocks + 2; ++j) {
-      //std::cerr << "idx: " << i << ", (x1, y1, x2, y2): " 
-                //<< "("<< _blocks[i]->_x1 << ", " << _blocks[i]->_y1 << ", " <<  _blocks[i]->_x2 << ", " << _blocks[i]->_y2 << ")\n";
-      //std::cerr << "idx: " << j << ", (x1, y1, x2, y2): "
-                //<< "("<< _blocks[j]->_x1 << ", " << _blocks[j]->_y1 << ", " <<  _blocks[j]->_x2 << ", " << _blocks[j]->_y2 << ")\n";
-      //assert(!_is_overlapped(_blocks[i], _blocks[j]));
-    //}
-  //}
-
 }
 
 bool SP::_is_overlapped(Block* a, Block* b) {
@@ -670,17 +535,6 @@ void SP::_set_wirelength() {
 
 void SP::_build_connections() {
 
-  //std::cerr << "first seq: ";
-  //for(size_t i = 0; i < _num_blocks; ++i) {
-    //std::cerr << _first_seq[i] << " ";
-  //}
-  //std::cerr << "\n";
-  //std::cerr << "second seq: ";
-  //for(size_t i = 0; i < _num_blocks; ++i) {
-    //std::cerr << _second_seq[i] << " ";
-  //}
-  //std::cerr << "\n";
-
   for(auto& b: _blocks) {
     b->_hconnects.clear();
     b->_vconnects.clear();
@@ -720,21 +574,6 @@ void SP::_build_connections() {
     _blocks[i]->_hconnects.push_back(_t);
     _blocks[i]->_vconnects.push_back(_t);
   }
-
-  //for(size_t i = 2; i < _num_blocks + 2; ++i) {
-    //std::cerr << "check hconnect for " << i << " block: ";
-    //for(auto& b: _blocks[i]->_hconnects) {
-      //std::cerr << b->_id << " ";
-    //}
-    //std::cerr << "\n";
-
-    //std::cerr << "check vconnect for " << i << " firt block: ";
-    //for(auto& b: _blocks[i]->_vconnects) {
-      //std::cerr << b->_id << " ";
-    //}
-    //std::cerr << "\n";
-  //}
-  
 }
 
 void SP::_spfa_h() {
@@ -789,63 +628,6 @@ void SP::_spfa_v() {
     }
   }
 
-}
-
-void SP::_move1(size_t idx1) {
-  // move 1
-  std::uniform_int_distribution<> random_idx(2, _num_blocks + 1);
-  auto idx2 = random_idx(_eng);
-  auto loc1 = _first_seq_id_loc_map[idx1];
-  auto loc2 = _first_seq_id_loc_map[idx2];
-
-  std::swap(_first_seq[loc1], _first_seq[loc2]);
-}
-
-void SP::_move2(size_t idx1) {
-  // move 2
-  std::uniform_int_distribution<> random_idx(2, _num_blocks + 1);
-  auto idx2 = random_idx(_eng);
-
-  auto first_loc1 =  _first_seq_id_loc_map[idx1];
-  auto first_loc2 =  _first_seq_id_loc_map[idx2];
-
-  auto second_loc1 =  _second_seq_id_loc_map[idx1];
-  auto second_loc2 =  _second_seq_id_loc_map[idx2];
-
-  std::swap(_first_seq[first_loc1], _first_seq[first_loc2]);
-  std::swap(_second_seq[second_loc1], _second_seq[second_loc2]);
-  std::swap(_first_seq_id_loc_map[idx1], _first_seq_id_loc_map[idx2]);
-  std::swap(_second_seq_id_loc_map[idx1], _second_seq_id_loc_map[idx2]);
-}
-
-void SP::_move3(size_t idx) {
-  // move 3
-  //std::uniform_int_distribution<> random_idx(2, _num_blocks + 1);
-  //auto idx = random_idx(_eng);
-  auto* b = _blocks[idx];
-  if(_outline.first < _chip_width && _outline.second < _chip_height) {
-    auto delta_w = _chip_width - _outline.first;
-    auto delta_h = _chip_height - _outline.second;
-    if(
-      (delta_w > delta_h && b->_height > b->_width) ||
-      (delta_w < delta_h && b->_height < b->_width)
-    ) {
-      std::swap(b->_height, b->_width);
-    }
-  }
-  else if(_outline.first < _chip_width) {
-    if(b->_height < b->_width) {
-      std::swap(b->_height, b->_width);
-    }
-  } 
-  else if(_outline.second < _chip_height) {
-    if(b->_height > b->_width) {
-      std::swap(b->_height, b->_width);
-    }
-  }
-  else {
-    std::swap(b->_height, b->_width);
-  }
 }
 
 void SP::_move() {
@@ -1049,10 +831,6 @@ void SP::_parse_block(
     assert(false);
   }
 
-  std::cerr << "outline: "              << _outline.first << ", " << _outline.second << "\n"
-            << "number of blocks: "     << _num_blocks << "\n"
-            << "number of terminals: "  << _num_terminals << "\n";
-
   _blocks.reserve(_num_blocks + 2);
   _blocks_map.reserve(_num_blocks + 2);
   _terminals_map.reserve(_num_terminals);
@@ -1075,7 +853,6 @@ void SP::_parse_block(
 
 
       if(line.find("terminal") != std::string::npos) {
-        //std::cerr << "line: " << line << "\n";
         while(std::getline(line_stream, token, ' ')) {
           if(token != "" && token != " " && token != "\r") {
             tokens.push_back(token);
@@ -1094,7 +871,6 @@ void SP::_parse_block(
         );
       }
       else {
-        std::cerr << "line: " << line << "\n";
         while(std::getline(line_stream, token, ' ')) {
           if(token != "" && token != " " && token != "\r") {
             tokens.push_back(token);
@@ -1112,7 +888,6 @@ void SP::_parse_block(
               tokens.push_back(token);
             }
           }
-          std::cerr << tokens[0] << ", " << tokens[1] << ", " << tokens[2] << "\n";
         }
 
         auto tmp = _blocks_map.emplace(
@@ -1129,10 +904,6 @@ void SP::_parse_block(
   assert(_blocks.size() == _num_blocks + 2);
   assert(_blocks_map.size() == _num_blocks + 2);
   assert(_terminals_map.size() == _num_terminals);
-
-  //for(size_t i = 2; i < _num_blocks + 2; ++i) {
-    //std::cerr << _blocks[i]->_name << ": (width, height) -> (" << _blocks[i]->_width << ", " << _blocks[i]->_height << ")\n";
-  //}
 }
 
 void SP::_parse_net(
@@ -1180,10 +951,8 @@ void SP::_parse_net(
         auto ttmp = _terminals_map.find(line);
         if(ttmp != _terminals_map.end()) {
           terminals.push_back(&(ttmp->second));
-          //std::cerr << "template: " << ttmp->second._name << "\n";
         }
         else {
-          std::cerr << "error: " << line << "....\n";
           assert(false);
         }
       }
@@ -1194,9 +963,64 @@ void SP::_parse_net(
     _nets.emplace_back(blocks, terminals, degree);
   }
 
-  std::cerr << "num nets: " << _num_nets << "\n";
-  //std::cerr << _nets.size();
   assert(_nets.size() == _num_nets);
 }
+
+// unused implementation ================================================================
+//void SP::_move1(size_t idx1) {
+  //// move 1
+  //std::uniform_int_distribution<> random_idx(2, _num_blocks + 1);
+  //auto idx2 = random_idx(_eng);
+  //auto loc1 = _first_seq_id_loc_map[idx1];
+  //auto loc2 = _first_seq_id_loc_map[idx2];
+
+  //std::swap(_first_seq[loc1], _first_seq[loc2]);
+//}
+
+//void SP::_move2(size_t idx1) {
+  //// move 2
+  //std::uniform_int_distribution<> random_idx(2, _num_blocks + 1);
+  //auto idx2 = random_idx(_eng);
+
+  //auto first_loc1 =  _first_seq_id_loc_map[idx1];
+  //auto first_loc2 =  _first_seq_id_loc_map[idx2];
+
+  //auto second_loc1 =  _second_seq_id_loc_map[idx1];
+  //auto second_loc2 =  _second_seq_id_loc_map[idx2];
+
+  //std::swap(_first_seq[first_loc1], _first_seq[first_loc2]);
+  //std::swap(_second_seq[second_loc1], _second_seq[second_loc2]);
+  //std::swap(_first_seq_id_loc_map[idx1], _first_seq_id_loc_map[idx2]);
+  //std::swap(_second_seq_id_loc_map[idx1], _second_seq_id_loc_map[idx2]);
+//}
+
+//void SP::_move3(size_t idx) {
+  //// move 3
+  //auto* b = _blocks[idx];
+  //if(_outline.first < _chip_width && _outline.second < _chip_height) {
+    //auto delta_w = _chip_width - _outline.first;
+    //auto delta_h = _chip_height - _outline.second;
+    //if(
+      //(delta_w > delta_h && b->_height > b->_width) ||
+      //(delta_w < delta_h && b->_height < b->_width)
+    //) {
+      //std::swap(b->_height, b->_width);
+    //}
+  //}
+  //else if(_outline.first < _chip_width) {
+    //if(b->_height < b->_width) {
+      //std::swap(b->_height, b->_width);
+    //}
+  //} 
+  //else if(_outline.second < _chip_height) {
+    //if(b->_height > b->_width) {
+      //std::swap(b->_height, b->_width);
+    //}
+  //}
+  //else {
+    //std::swap(b->_height, b->_width);
+  //}
+//}
+
 
 } // end of namespace ===================================================
