@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <queue>
 #include <climits>
+#include <omp.h>
 
 namespace fp {
 

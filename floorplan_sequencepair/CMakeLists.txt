@@ -39,7 +39,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   endif() 
 endif()
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" )
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 
 
@@ -82,4 +82,4 @@ message(STATUS "building executables ...")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 add_executable(sp ${PROJECT_SOURCE_DIR}/main/main.cpp)
-target_link_libraries(sp ${PROJECT_NAME} stdc++fs -fopenmp)
+target_link_libraries(sp ${PROJECT_NAME} -fopenmp stdc++fs)

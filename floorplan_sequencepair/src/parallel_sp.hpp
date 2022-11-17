@@ -43,6 +43,7 @@ ParallelSP::ParallelSP(
   const size_t num_threads
 ): _num_threads{num_threads} {
 
+
   for(size_t i = 0; i < _num_threads; ++i) {
     //_sps.emplace_back(alpha, blockf, netf);
     _sps.emplace_back(alpha, blockf, netf, _eng);
@@ -84,6 +85,8 @@ void ParallelSP::_update_best() {
     sp._best_second_seq = _best_sp->_best_second_seq;
     sp._best_first_seq_id_loc_map = _best_sp->_best_first_seq_id_loc_map;
     sp._best_second_seq_id_loc_map = _best_sp->_best_second_seq_id_loc_map;
+    sp._best_block_wh = _best_sp->_best_block_wh;
+
     sp._update_all_to_best();
   }
   
@@ -91,23 +94,47 @@ void ParallelSP::_update_best() {
 
 void ParallelSP::apply() {
 
-  _update_best();
+  //_update_best();
 
   size_t width = _sps[0]._outline.first;
   size_t height = _sps[0]._outline.second;
 
-  bool is_legal = (width >= _best_sp->_chip_width) && (height >= _best_sp->_chip_height);
+  bool is_legal{false};
   size_t count{0};
 
+
+  omp_set_num_threads(_num_threads);
+
   while(!is_legal && count < 1000) {
+
     #pragma omp parallel for
-    for(auto& sp: _sps) {
-      sp.apply();
+    for(size_t i = 0; i < _sps.size(); ++i) {
+      std::cerr << omp_get_thread_num() << "\n";
+      _sps[i].apply();
     }
+
     _update_best();
     ++count;
-    is_legal = (_best_sp->_outline.first >= width) && (_best_sp->_outline.second >= height);
+    is_legal = (_best_sp->_chip_width <= width) && (_best_sp->_chip_height <= height);
+    std::cerr << "cost: " << _best_sp->_cost << "\n";
+    std::cerr << "is legal: " << is_legal << "\n";
   }
+
+  _best_sp->_build_connections();
+  _best_sp->_get_results();
+
+  //double out_width{0};
+  //double out_height{0};
+  //if(width < _best_sp->_chip_width) {
+    //out_width= _chip_width - _outline.first;
+
+  //}
+  //if(_outline.second < _chip_height) {
+    //out_height = _chip_height - _outline.second;
+  //}
+  //std::cerr << "best penalty: " << _best_cost << "\n";
+
+  std::cerr << "best outline: " << "width: " << _best_sp->_chip_width << " height: " << _best_sp->_chip_height << "\n"; 
 }
 
 void ParallelSP::dump(std::ostream& os) {
