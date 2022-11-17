@@ -46,6 +46,9 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 # CXX target properties
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+#OpenMP
+find_package(OpenMP REQUIRED)
+set(OpenMP_CXX_FLAGS "-fopenmp")
 
 # message
 message(STATUS "CMAKE_HOST_SYSTEM: ${CMAKE_HOST_SYSTEM}")
@@ -82,4 +85,4 @@ message(STATUS "building executables ...")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 add_executable(sp ${PROJECT_SOURCE_DIR}/main/main.cpp)
-target_link_libraries(sp ${PROJECT_NAME} -fopenmp stdc++fs)
+target_link_libraries(sp ${PROJECT_NAME} stdc++fs OpenMP::OpenMP_CXX)
