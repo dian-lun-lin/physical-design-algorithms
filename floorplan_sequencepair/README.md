@@ -58,38 +58,33 @@ For example, to enable eight threads:
 ```
 
 # Experimental Results
-I implement SPF using C++17 and compile SPF using GCC-8 with optimization -O3 enabled. I run SPF on twhuang-server-01
+I implement SPF using C++17 and compile SPF using GCC-8 with optimization -O3 enabled. I run SPF on twhuang-server-01. All data is in average of ten runs.
 
 ##  Single thread
-The following table shows runtime of my SPF implementaion on each benchmark using one thread. My SPF implementation can find inbound solution for all benchamrks. In input_0.dat, the algorithm requries 9 seconds to finish. That is because input_0.dat contains the largest number of cells, which induces noticable overhead of updating buckets at each iteration within a pass.
+The following table shows runtime of my SPF implementaion on each benchmark using one thread. My SPF implementation can find inbound solution for all benchamrks. 
 
 
 | Input       | Total cost | runtime |
 |-------------|------------|---------|
 | 1           | 360550     | 0.13s |
 | 2           | 360350     | 15.6s |
-| 3           | 
-| ami33       |
-| ami49       |
-| apte        |
-| hp          |
-| xerox       |
+| 3           | 107200849  | 633.17s |
+| ami33       | 712069     | 1.3s |
+| ami49       | 21291598   | 3.4s |
+| apte        | 24308574   | 0.2s |
+| hp          | 4795343    | 0.7s |
+| xerox       | 11020250   | 0.4s |
 
 
 ##  Eight threads
-The following table shows runtime and cut size of our F-M on each benchmark using eight threads. We can clearly see my implementation can get signifcant improvement by using multiple CPU threads. Take as an example, the n is **6.8x** compared to initial partition.
+The following table shows runtime of my SPF implementaion on 2 and 3 benchmarks using eight threads. The 2 and 3 benchmarks are the larget bechmarks.
 
 
 | Input       | Total cost | runtime |
 |-------------|------------|---------|
-| 1           |
 | 2           |
 | 3           |
-| ami33       |
-| ami49       |
-| apte        |
-| hp          |
-| xerox       |
+
 
 
 # Challenges
