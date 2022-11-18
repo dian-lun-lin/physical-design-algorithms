@@ -68,7 +68,7 @@ The following table shows runtime of my SPF implementaion on each benchmark usin
 |-------------|------------|---------|
 | 1           | 360550     | 0.13s   |
 | 2           | 360350     | 15.6s   |
-| 3           | 107200849  | 633.17s |
+| 3           | 107200849  | 362.17s |
 | ami33       | 712069     | 1.3s    |
 | ami49       | 21291598   | 3.4s    |
 | apte        | 24308574   | 0.2s    |
@@ -86,7 +86,7 @@ The SA keep finding local minimum and cannot jump out of the local minimum.
 | Input       | Total cost | runtime |
 |-------------|------------|---------|
 | 2           | 360350     | 4.11s   |
-| 3           | 107400498  | 630.23s |
+| 3           | 107400498  | 358.23s |
 
 
 
