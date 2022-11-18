@@ -86,7 +86,7 @@ The SA keep finding local minimum and cannot jump out of the local minimum.
 | Input       | Total cost | runtime |
 |-------------|------------|---------|
 | 2           | 360350     | 4.11s   |
-| 3           | 
+| 3           | 107400498  | 630.23s |
 
 
 
