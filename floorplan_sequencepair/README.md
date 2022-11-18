@@ -29,7 +29,7 @@ There are serveral details in my sequenece-pair floorplanning (SPF) implementaio
 Each thread will create its sequence pair and perform SA. 
 After SA, I will find the best solution and update each thread's sequence pair to the best.
 2. By default, the number of thread is one.
-4. I run SA at most 30 times.
+4. I run SA at most 100 times.
 5. My cost function only considers whether the solution is legal.
 I will jump out of SA loop once I find a legal solution.
 6. Finally, I will apply compress() to get the best result.
@@ -48,7 +48,7 @@ To run sp, you can simply type:
 
 ```bash
 ~$ cd bin
-~$ ./sp [alpha] [input_file] [output_file] [num_threads=1]
+~$ ./sp [alpha] [input_block_file] [input_net_file] [output_file] [num_threads=1]
 ```
 
 For example, to enable eight threads:
@@ -66,23 +66,46 @@ The following table shows runtime of my SPF implementaion on each benchmark usin
 
 | Input       | Total cost | runtime |
 |-------------|------------|---------|
+| 1           | 360550     | 0.13s |
+| 2           | 360350     | 15.6s |
+| 3           | 
+| ami33       |
+| ami49       |
+| apte        |
+| hp          |
+| xerox       |
 
 
 ##  Eight threads
 The following table shows runtime and cut size of our F-M on each benchmark using eight threads. We can clearly see my implementation can get signifcant improvement by using multiple CPU threads. Take as an example, the n is **6.8x** compared to initial partition.
 
 
-
+| Input       | Total cost | runtime |
+|-------------|------------|---------|
+| 1           |
+| 2           |
+| 3           |
+| ami33       |
+| ami49       |
+| apte        |
+| hp          |
+| xerox       |
 
 
 # Challenges
-During the F-M implementation, I encounter three challenges:
+During the SPF implementation, I encounter two challenges:
 
- 1. Tuning SA is extremely challenging 
- 2. Debugging SPF is much more diffcult than FM partitiong.
+ 1.  Debugging SPF is much more diffcult than FM partitiong
  
-Apparently, the fist challenge is due to a bug in my code. To identify where the bug is, I carefully go through a simple testcase (i.e., input_6.dat) and print out
-the updated gain of each cell at each iteration within a pass. The print-out results show I did not correctly update the gain of each cell.
-For the second and thrid challengs, I dive into the F-M paper and figure out the implemntation details.
+ In my implemetation, bugs typically occur at sequence pair-to-graph transformation. However, this type of bug is very hard to find since SA does not reconize the bug. You can still get cost based on your wrong transformation results. The only way to debug is to print out the sequence pair and manully check whether the corresponding graph is correct.
+ 
+ 2.  Tuning SA is extremely challenging
+
+SA is very senstive to parameters and the cost function.
+Results can be significantly different by changing only one parameter. 
+Trial and error is the only way to fine-tune parameters and cost function.
+ 
+
+ 
 
 
