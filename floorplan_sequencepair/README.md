@@ -1,6 +1,5 @@
 # Fixed-outline Floorplanning
 
-Due: 10/26 23:59 PM
 
 ## Problem Description
 
@@ -20,189 +19,70 @@ where $A$ denotes the bounding-box area of the floorplan, Anorm is the average a
 
 Note that a floorplan which cannot fit into the given outline is not acceptable.
 
-## Input
+# How to Compile & Run
 
-Each test case has two input files, input.block and input.nets. The first file (input.block) gives the outline size, the number of blocks, and the number of terminals defined in this file. Then the block dimensions are listed, followed by the terminal locations. The file format is as follows:
+There are serveral details in my sequenece-pair floorplanning (SPF) implementaion:
+ 
 
-```text
-Outline: <outline width, outline height> 
-NumBlocks: <# of blocks> 
-NumTerminals: <# of terminals>
-<macro name> <macro width> <macro height> 
-... More macros
-<terminal name> terminal <terminal x coordinate> <terminal y coordinate> 
-... More terminals
-```
+1. I randomly initialize sequence pair and apply simulated annealing (SA) to improve cost.
+3. I apply openmp to find solution in parallel. 
+Each thread will create its sequence pair and perform SA. 
+After SA, I will find the best solution and update each thread's sequence pair to the best.
+2. By default, the number of thread is one.
+4. I run SA at most 30 times.
+5. My cost function only considers whether the solution is legal.
+I will jump out of SA loop once I find a legal solution.
+6. Finally, I will apply compress() to get the best result.
 
-The second file gives the number of nets in the floorplan, followed by the terminal information for each net. The file format is as follows:
-
-```text
-NumNets: <# of nets>
-NetDegree: <# of terminals in this net> <terminal name>
-... More terminal names
-... More “NetDegree” and “terminal name”
-```
-
-The user-defined ratio α is given through the command-line argument. It ranges between 0 and 1.
-
-## Output
-
-The output file (output.rpt) records the problem output. This report consists of six parts: 
-  1. The final cost
-  2. The total wirelength
-  3. The chip area
-  4. The chip width and height
-  5. The runtime in seconds
-  6. The bounding-box coordinate for each macro (specified by the lower-left corner and upper-right corner). 
-
-The report file format is shown below:
-
-
-```text
-<final cost>                     // Cost 
-<total wirelength>               // W
-<chip_area>                      // area = (chip_width) * (chip_height)
-<chip_width> <chip_height>       //resulting chip width and height
-<program_runtime>                //report the runtime in seconds
-<macro_name> <x1> <y1> <x2> <y2> 
-<macro_name> <x1> <y1> <x2> <y2> // (x1, y1): lower-left corner, (x2, y2): upper-right corner 
-... More macros
-```
-
-## Example
-
-Consider the following example of four blocks (`A`, `B`, `C`, and `D`) and two nets (`A, C, D` and `B, D`):
-
-```text
-# input.block
-Outline: 120 120 
-NumBlocks: 4 
-NumTerminals: 0 
-A 40 50
-B 60 50 
-C 60 50 
-D 40 50
-```
-
-```text
-# input.nets
-NumNets: 2 
-NetDegree: 3 
-A
-C
-D 
-NetDegree: 2 
-B
-D
-```
-
-An example floorplan output is as follows:
-
-```
-5085 
-170 
-10000 
-100 100 
-0.24
-A 0 50 40 100 
-B 40 50 100 100 
-C 0 0 60 50 
-D 60 0 100 50
-```
-
-![](images/example.png)
-
-
-
-
-## Language
-
-You can implement this assignment using any language you like. However, we recommend `C` or `C++` for performance reason.
-
-## Platform
-
-You need to evaluate your program on the Linux server at `twhuang-server-01.ece.utah.edu`.
-
-Please email Dr. Huang (tsung-wei.huang at utah.edu) for creating an account to log in.
-
-
-## Program Command 
-
-Your program should support the following command-line parameters:
+To compile, you need GNU C++ Compiler at least v7.0 with -std=c++17. I recommend out-of-source build with cmake:
 
 ```bash
-[executable file name] [α value] [input.block name] [input.net name] [output file name]
+~$ mkdir build
+~$ cd build
+~$ cmake ../
+~$ make
 ```
 
-For example:
+You will see an executable file `sp` under `bin/`.
+To run sp, you can simply type:
 
 ```bash
-~$ ./floorplanner 0.5 input.block input.nets result.rpt
+~$ cd bin
+~$ ./sp [alpha] [input_file] [output_file] [num_threads=1]
 ```
 
-## Checker 
-
-We have also provide a checker program for you to verify your program:
+For example, to enable eight threads:
 
 ```bash
-~$ ./checker/checker_linux benchmark_name_only [your output file name]
+~$ ./sp 0.5 input_pa2/2.block input_pa2/2.net 2.out 8
 ```
 
-For example, assume you want to verity the benchmark `ami33`:
+# Experimental Results
+I implement SPF using C++17 and compile SPF using GCC-8 with optimization -O3 enabled. I run SPF on twhuang-server-01
 
-```bash
-~$ ls
-input_pa2 README.md checker
-~$ ./checker/checker.py ami33 ami33.rpt  
-```
-
-A successful verification will give you the following message:
-
-```bash
-######################################################################
-           input: ami33
-   num of blocks: 33
-num of terminals: 40
-     num of nets: 121
-            area: 1281056
- area difference: 0.0
-            hpwl: 118706.0
- hpwl difference: 0.0
-      total cost: 699881.0
-            SAME
-           LEGAL
-        IN BOUND
-######################################################################
-```
-
-Note the above output is just an example. The name two lines tell if your result is legal.
+##  Single thread
+The following table shows runtime of my SPF implementaion on each benchmark using one thread. My SPF implementation can find inbound solution for all benchamrks. In input_0.dat, the algorithm requries 9 seconds to finish. That is because input_0.dat contains the largest number of cells, which induces noticable overhead of updating buckets at each iteration within a pass.
 
 
-## Submission
-
-You need to submit a report by responding directly to [Programming Assignment #2 Submission Page](https://github.com/tsung-wei-huang/ece5960-physical-design/issues/3). The report should contain the following section:
-
-+ A section describing means to compile and run your code 
-+ A section listing partition results in terms of cut size and runtime for each *PASSED* benchmark 
-+ A section outlining the challenges you encountered and solved during the implementation
-
-You *DO NOT* need to submit any source code but place it under the folder `/home/your_account/PA2` in the server `twhuang-server-01.ece.utah.edu`, where `your_account` is your log-in account. The instructor will go to your folder to grade your code based on the instruction in your report. If you wish to place your code somewhere else, please document it in your report.
-
-To help you stay on schedule, we will have two checkpoints. At each checkpoint, you will need to update your current results in a Markdown Table by responding to [Programming Assignment #2 Checkpoint Report](https://github.com/tsung-wei-huang/ece5960-physical-design/issues/4).
+| Input       | Total cost | runtime |
+|-------------|------------|---------|
 
 
-## Grading Policy
+##  Eight threads
+The following table shows runtime and cut size of our F-M on each benchmark using eight threads. We can clearly see my implementation can get signifcant improvement by using multiple CPU threads. Take as an example, the n is **6.8x** compared to initial partition.
 
-This programming assignment will be graded based on the following metrics:
 
-+ Correctness reported by the checker program
-+ Solution quality of your partitioned results
-+ Runtime performance of your program
 
-## Academic Integrity
 
-Please refer to the [University Academic Policies](https://regulations.utah.edu/academics/) for details about academic integrity.
 
-## Questions
+# Challenges
+During the F-M implementation, I encounter three challenges:
 
-If you have any questions, please create an [issue page](https://github.com/tsung-wei-huang/ece5960-physical-design/issues). We highly encourage you discuss questions with others in the issue page.
+ 1. Tuning SA is extremely challenging 
+ 2. Debugging SPF is much more diffcult than FM partitiong.
+ 
+Apparently, the fist challenge is due to a bug in my code. To identify where the bug is, I carefully go through a simple testcase (i.e., input_6.dat) and print out
+the updated gain of each cell at each iteration within a pass. The print-out results show I did not correctly update the gain of each cell.
+For the second and thrid challengs, I dive into the F-M paper and figure out the implemntation details.
+
+
