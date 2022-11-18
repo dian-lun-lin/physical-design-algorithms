@@ -66,24 +66,27 @@ The following table shows runtime of my SPF implementaion on each benchmark usin
 
 | Input       | Total cost | runtime |
 |-------------|------------|---------|
-| 1           | 360550     | 0.13s |
-| 2           | 360350     | 15.6s |
+| 1           | 360550     | 0.13s   |
+| 2           | 360350     | 15.6s   |
 | 3           | 107200849  | 633.17s |
-| ami33       | 712069     | 1.3s |
-| ami49       | 21291598   | 3.4s |
-| apte        | 24308574   | 0.2s |
-| hp          | 4795343    | 0.7s |
-| xerox       | 11020250   | 0.4s |
+| ami33       | 712069     | 1.3s    |
+| ami49       | 21291598   | 3.4s    |
+| apte        | 24308574   | 0.2s    |
+| hp          | 4795343    | 0.7s    |
+| xerox       | 11020250   | 0.4s    |
 
 
 ##  Eight threads
-The following table shows runtime of my SPF implementaion on 2 and 3 benchmarks using eight threads. The 2 and 3 benchmarks are the larget bechmarks.
+The following table shows runtime of my SPF implementaion on benchmark 2 and 3 using eight threads. The benchmark 2 and 3 are the largest bechmarks that require the longest runtime to find a valid solution.
+For benchmark 2, we can clearly see my implementation using eight threads acheves times speed-up compared to single thread implementaion.
+For benchmark 3, the runtime improvement is not significant since a valid solution in benchmark 3 is extremely hard to find. 
+The SA keep finding local minimum and cannot jump out of the local minimum.
 
 
 | Input       | Total cost | runtime |
 |-------------|------------|---------|
-| 2           |
-| 3           |
+| 2           | 360350     | 4.11s   |
+| 3           | 
 
 
 
