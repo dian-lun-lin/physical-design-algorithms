@@ -78,7 +78,7 @@ The following table shows runtime of my SPF implementaion on each benchmark usin
 
 ##  Eight threads
 The following table shows runtime of my SPF implementaion on benchmark 2 and 3 using eight threads. The benchmark 2 and 3 are the largest bechmarks that require the longest runtime to find a valid solution.
-For benchmark 2, we can clearly see my implementation using eight threads acheves times speed-up compared to single thread implementaion.
+For benchmark 2, we can clearly see my implementation using eight threads acheves ~4 times speedup compared to single thread implementaion.
 For benchmark 3, the runtime improvement is not significant since a valid solution in benchmark 3 is extremely hard to find. 
 The SA keep finding local minimum and cannot jump out of the local minimum.
 
