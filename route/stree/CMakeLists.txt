@@ -84,3 +84,4 @@ message(STATUS "building executables ...")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 add_executable(stree ${PROJECT_SOURCE_DIR}/main/main.cpp)
+target_link_libraries(stree ${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/3rd-party/flute/libflute.a)

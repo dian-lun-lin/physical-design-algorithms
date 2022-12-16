@@ -37,8 +37,12 @@ void Stree::apply() {
     xs.push_back(p._x);
     ys.push_back(p._y);
   }
+  Flute::readLUT();
 
-  Flute::flute(10, xs.data(), ys.data(), 10);
+  auto tree = Flute::flute(10, xs.data(), ys.data(), 3);
+  Flute::printtree(tree);
+  std::cout << "wire length: " << Flute::wirelength(tree) << "\n";
+  Flute::write_svg(tree, "tmp.out");
 }
 
 void Stree::_parse() {

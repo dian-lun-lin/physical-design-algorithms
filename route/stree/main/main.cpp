@@ -7,4 +7,5 @@ int main(int argc, char** argv) {
   }
   std::filesystem::path input_file{argv[1]};
   st::Stree st(input_file);
+  st.apply();
 }
