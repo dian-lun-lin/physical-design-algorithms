@@ -1946,7 +1946,7 @@ void write_svg(Tree t,
 
   int dx = x_max - x_min;
   int dy = y_max - y_min;
-  const int sz = std::max(std::max(dx, dy) / 400, 1);
+  const int sz = std::max(std::max(dx, dy) / 400, 2);
   const int hsz = sz / 2;
 
   FILE* stream = fopen(filename, "w");

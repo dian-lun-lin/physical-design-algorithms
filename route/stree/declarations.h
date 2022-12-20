@@ -8,5 +8,12 @@
 
 namespace st {
 
+  enum class LineType {
+    VLINE,
+    HLINE
+  };
+
   class Stree;
+  class Pin;
+  class Line;
 }
