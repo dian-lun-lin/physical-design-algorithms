@@ -52,28 +52,22 @@ To run the program, you can simply type:
 I implement stree using C++17 and compile F-M using GCC-8 with optimization -O3 enabled. I run the program on twhuang-server-01
 
 
-The following table shows runtime of my F-M implementation on each benchmark for one pass. My F-M implementation can finish all benchamrks **within 10 seconds**. In input_0.dat, the algorithm requries 9 seconds to finish. That is because input_0.dat contains the largest number of cells, which induces noticable overhead of updating buckets at each iteration within a pass.
-
-
-| Input       | cutsize | runtime |
-|-------------|---------|---------|
-| input_0.dat | 42256   | 9.00s   |
-| input_1.dat | 2508    | 0.02s   |
-| input_2.dat | 4247    | 0.04s   |
-| input_3.dat | 35008   | 0.40s   |
-| input_4.dat | 97944   | 0.89s   |
-| input_5.dat | 288264  | 2.96s   |
-| input_6.dat | 2       | 0.004s  |
+| Input       | wirelength |
+|-------------|------------|
+| case1       | 249 |
+| case2       | 499 | 
+| case3       | 780 | 
+| case4       | 17093 | 
+| case5       | 2418476 | 
+| case6       | 34300909 | 
+| case7       | 548777096 | 
+| case8       | 7669941016 | 
+| case100000  | 24375982283 |
+| case200000  | 34477180072 |
+| case500000  | 602386 |  
 
 
 # Challenges
-During the F-M implementation, I encounter three challenges:
+During theimplementation, I need to understand how to use flute3 to solve the problem. The main challenge is that flute3 is not well documented. I need to look into the source code to understand the usage of flute3.  
 
- 1. The cut size cannot converage for multiple passes. 
- 2. The overhead of inserting/erasing cells into bucket lists is large.
- 3. The overhead of updating gain of each cell is large.
- 
-Apparently, the fist challenge is due to a bug in my code. To identify where the bug is, I carefully go through a simple testcase (i.e., input_6.dat) and print out
-the updated gain of each cell at each iteration within a pass. The print-out results show I did not correctly update the gain of each cell.
-For the second and thrid challengs, I dive into the F-M paper and figure out the implemntation details.
 
