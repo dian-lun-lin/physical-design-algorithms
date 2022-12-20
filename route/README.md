@@ -26,78 +26,54 @@ where $U$ is the number of unconnected pins and $H$ is the half perimeter wirele
 
 Note that a route which has any net routed out of the chip boundary is a failed result.
 
-## Input
+# How to Compile & Run
 
-The input file starts with the chip boundary, followed by the description of pins. The description of each pin contains the keyword PIN, followed by the name and the coordinate of the pin. 
+I use Flute3 to sovle the problem
 
-| Input Format | Example |
-| ------------ | ------- |
-| Boundary = (llx,lly), (urx,ury)<br> NumPins = number <br> Pin name (x,y) <br> ...| Boundary = (0,0), (100,100) <br> NumPins = 3 <br> PIN p1 (20,30) <br> PIN p2 (50,30) <br> PIN p3 (50,90)|
-
-The sample input for the format defines a net with three pins, `p1`, `p2`, and `p3`.
-
-## Output
-
-| Input Format | Example |
-| ------------ | ------- |
-| NumRoutedPins = number <br> Wirelength = number <br> H-line (x1,y) (x2,y) <br> V-line (x,y1) (x,y2) <br> ... | NumRoutedPins = 3 <br> WireLength = 90 <Br> V-line (50,30) (50,90) <br> H-line (20,30) (50,30) |
-
-
-In the program output, you are asked to give the number of pins, the routing wirelength, and the coordinates of routed net segments. Note that you can output the H-line/V-line in any order.
-
-## Language
-
-You can implement this assignment using any language you like. However, we recommend `C` or `C++` for performance reason.
-
-## Platform
-
-You need to evaluate your program on the Linux server at `twhuang-server-01.ece.utah.edu`.
-
-Please email Dr. Huang (tsung-wei.huang at utah.edu) for creating an account to log in.
-
-
-## Program Command 
-
-Your program should support the following command-line parameters:
-
+To compile, you need GNU C++ Compiler at least v7.0 with -std=c++17. I recommend out-of-source build with cmake:
 
 ```bash
-[executable file name] [input file name] [output file name]
+~$ mkdir build
+~$ cd build
+~$ cmake ../
+~$ make
 ```
 
-For example:
+You will see an executable file `stree` under `bin/`.
+To run the program, you can simply type:
 
 ```bash
-~$ ./router input_pa4/case1 output1
+~$ cd bin
+~$ ./fm [input file name] [output file name] 
 ```
 
 
-## Submission
-
-You need to submit a report by responding directly to [Programming Assignment #3 Submission Page](https://github.com/tsung-wei-huang/ece5960-physical-design/issues/5). The report should contain the following section:
-
-+ A section describing means to compile and run your code 
-+ A section listing partition results in terms of routed pins and wirelength for each benchmark 
-+ A section outlining the challenges you encountered and solved during the implementation
-
-You *DO NOT* need to submit any source code but place it under the folder `/home/your_account/PA4` in the server `twhuang-server-01.ece.utah.edu`, where `your_account` is your log-in account. The instructor will go to your folder to grade your code based on the instruction in your report. If you wish to place your code somewhere else, please document it in your report.
-
-To help you stay on schedule, we will have two checkpoints. At each checkpoint, you will need to update your current results in a Markdown Table by responding to [Programming Assignment #3 Checkpoint Report](https://github.com/tsung-wei-huang/ece5960-physical-design/issues/6).
+# Experimental Results
+I implement stree using C++17 and compile F-M using GCC-8 with optimization -O3 enabled. I run the program on twhuang-server-01
 
 
-## Grading Policy
+The following table shows runtime of my F-M implementation on each benchmark for one pass. My F-M implementation can finish all benchamrks **within 10 seconds**. In input_0.dat, the algorithm requries 9 seconds to finish. That is because input_0.dat contains the largest number of cells, which induces noticable overhead of updating buckets at each iteration within a pass.
 
-This programming assignment will be graded based on the following metrics:
 
-+ Correctness reported by the checker program
-+ Solution quality of your partitioned results
-+ Runtime performance of your program
+| Input       | cutsize | runtime |
+|-------------|---------|---------|
+| input_0.dat | 42256   | 9.00s   |
+| input_1.dat | 2508    | 0.02s   |
+| input_2.dat | 4247    | 0.04s   |
+| input_3.dat | 35008   | 0.40s   |
+| input_4.dat | 97944   | 0.89s   |
+| input_5.dat | 288264  | 2.96s   |
+| input_6.dat | 2       | 0.004s  |
 
-## Academic Integrity
 
-Please refer to the [University Academic Policies](https://regulations.utah.edu/academics/) for details about academic integrity.
+# Challenges
+During the F-M implementation, I encounter three challenges:
 
-## Questions
-
-If you have any questions, please create an [issue page](https://github.com/tsung-wei-huang/ece5960-physical-design/issues). We highly encourage you discuss questions with others in the issue page.
+ 1. The cut size cannot converage for multiple passes. 
+ 2. The overhead of inserting/erasing cells into bucket lists is large.
+ 3. The overhead of updating gain of each cell is large.
+ 
+Apparently, the fist challenge is due to a bug in my code. To identify where the bug is, I carefully go through a simple testcase (i.e., input_6.dat) and print out
+the updated gain of each cell at each iteration within a pass. The print-out results show I did not correctly update the gain of each cell.
+For the second and thrid challengs, I dive into the F-M paper and figure out the implemntation details.
 
