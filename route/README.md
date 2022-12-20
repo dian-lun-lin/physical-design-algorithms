@@ -44,12 +44,12 @@ To run the program, you can simply type:
 
 ```bash
 ~$ cd bin
-~$ ./fm [input file name] [output file name] 
+~$ ./stree [input file name] [output file name] 
 ```
 
 
 # Experimental Results
-I implement stree using C++17 and compile F-M using GCC-8 with optimization -O3 enabled. I run the program on twhuang-server-01
+I implement stree using C++17 and compile the program using GCC-8 with optimization -O3 enabled. I run the program on twhuang-server-01
 
 
 | Input       | wirelength |
